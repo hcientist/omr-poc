@@ -9,18 +9,12 @@ services:
       MAX_PAGES: "6"
       ENGINE_TIMEOUT: "900"
       KEEP_HOURS: "72"
-      ENGINES: "audiveris,homr"   # oemer disabled: ~30+ min/page on casa
-      OMP_NUM_THREADS: "3"
+      # Which engines to run, in order. oemer is installed but off by default (very slow on CPU).
+      ENGINES: "${OMR_ENGINES:-audiveris,homr}"
+      OMP_NUM_THREADS: "${OMR_THREADS:-4}"
     volumes:
       - ./data:/data
-    # Tailnet-only while testing. To go live: delete `ports:` and point NPM at omr:8000.
     ports:
-      - "100.112.148.66:8487:8000"
-    mem_limit: 4g
-    memswap_limit: 4g
-    cpus: 3
-    networks: [web]
-
-networks:
-  web:
-    external: true
+      - "${OMR_BIND:-127.0.0.1}:${OMR_PORT:-8487}:8000"
+    mem_limit: "${OMR_MEM:-6g}"
+    memswap_limit: "${OMR_MEM:-6g}"
