@@ -1,0 +1,25 @@
+services:
+  omr:
+    build: .
+    image: omr:latest
+    container_name: omr
+    restart: unless-stopped
+    environment:
+      MAX_UPLOAD_MB: "40"
+      MAX_PAGES: "6"
+      ENGINE_TIMEOUT: "900"
+      KEEP_HOURS: "72"
+      OMP_NUM_THREADS: "3"
+    volumes:
+      - ./data:/data
+    # Tailnet-only while testing. To go live: delete `ports:` and point NPM at omr:8000.
+    ports:
+      - "100.112.148.66:8487:8000"
+    mem_limit: 4g
+    memswap_limit: 4g
+    cpus: 3
+    networks: [web]
+
+networks:
+  web:
+    external: true

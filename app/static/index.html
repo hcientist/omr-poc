@@ -1,0 +1,386 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>OMR Compare</title>
+<meta name="description" content="Run Audiveris, oemer and homr on a score image or PDF and compare their MusicXML side by side.">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><rect width='32' height='32' rx='7' fill='%23233'/><path d='M20 6v15.5a4 4 0 1 1-2-3.46V9l-7 2v12.5a4 4 0 1 1-2-3.46V9.5z' fill='%23fc6'/></svg>">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,600&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/diff2html@3.4.52/bundles/css/diff2html.min.css">
+<style>
+:root{
+  --bg:#f4f1ea; --surface:#fffdf8; --surface-2:#ece7dc; --ink:#1d2326; --muted:#5f676b; --line:#d8d1c3;
+  --accent:#b4441f; --accent-ink:#fff; --paper:#fff;
+  --ok:#2f7d4f; --warn:#a86b00; --bad:#b3261e; --run:#2659a8;
+  --e-audiveris:#2659a8; --e-oemer:#7a3fa0; --e-homr:#2f7d4f;
+  --radius:10px; --shadow:0 1px 2px rgb(0 0 0/.06),0 4px 16px rgb(0 0 0/.05);
+  color-scheme:light;
+}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){
+  --bg:#15191b; --surface:#1d2225; --surface-2:#262c30; --ink:#e7e3da; --muted:#9aa2a6; --line:#343b40;
+  --accent:#f08a5d; --accent-ink:#1a1a1a; --paper:#fbfaf6;
+  --ok:#6cc58f; --warn:#e3b04b; --bad:#ff8a80; --run:#82a9ec;
+  --e-audiveris:#82a9ec; --e-oemer:#c59be3; --e-homr:#6cc58f; color-scheme:dark;
+}}
+:root[data-theme="dark"]{
+  --bg:#15191b; --surface:#1d2225; --surface-2:#262c30; --ink:#e7e3da; --muted:#9aa2a6; --line:#343b40;
+  --accent:#f08a5d; --accent-ink:#1a1a1a; --paper:#fbfaf6;
+  --ok:#6cc58f; --warn:#e3b04b; --bad:#ff8a80; --run:#82a9ec;
+  --e-audiveris:#82a9ec; --e-oemer:#c59be3; --e-homr:#6cc58f; color-scheme:dark;
+}
+*{box-sizing:border-box}
+html,body{margin:0}
+body{background:var(--bg);color:var(--ink);font:15px/1.5 "IBM Plex Sans",system-ui,sans-serif;-webkit-font-smoothing:antialiased}
+a{color:var(--accent)}
+code,.mono{font-family:"IBM Plex Mono",ui-monospace,monospace;font-size:.92em}
+.wrap{max-width:1680px;margin:0 auto;padding:0 16px}
+header.top{padding:28px 0 8px}
+h1{font-family:Fraunces,Georgia,serif;font-weight:600;font-size:clamp(28px,4vw,40px);letter-spacing:-.01em;margin:0}
+h1 span{color:var(--accent)}
+.lede{color:var(--muted);margin:6px 0 0;max-width:70ch}
+h2{font-family:Fraunces,Georgia,serif;font-weight:600;font-size:22px;margin:0 0 12px}
+section{margin:22px 0}
+.card{background:var(--surface);border:1px solid var(--line);border-radius:var(--radius);box-shadow:var(--shadow)}
+/* input */
+form.in{display:grid;grid-template-columns:1fr auto 1fr auto;gap:14px;align-items:stretch;padding:16px}
+.drop{border:2px dashed var(--line);border-radius:8px;display:flex;align-items:center;gap:12px;padding:12px 14px;cursor:pointer;min-height:58px;transition:border-color .15s,background .15s}
+.drop:hover,.drop.over{border-color:var(--accent);background:var(--surface-2)}
+.drop input{position:absolute;width:1px;height:1px;opacity:0}
+.drop .t{font-weight:500}.drop .s{color:var(--muted);font-size:13px}
+.or{align-self:center;color:var(--muted);font-size:13px;text-transform:uppercase;letter-spacing:.08em}
+.urlbox{display:flex;flex-direction:column;justify-content:center;gap:4px}
+.urlbox input{width:100%;font:inherit;padding:10px 12px;border:1px solid var(--line);border-radius:8px;background:var(--bg);color:var(--ink)}
+.urlbox .s{color:var(--muted);font-size:13px}
+.urlbox .s button{all:unset;color:var(--accent);cursor:pointer;text-decoration:underline}
+button.go{font:600 15px "IBM Plex Sans",sans-serif;background:var(--accent);color:var(--accent-ink);border:0;border-radius:8px;padding:0 22px;cursor:pointer;min-height:44px}
+button.go:disabled{opacity:.5;cursor:default}
+@media (max-width:860px){form.in{grid-template-columns:1fr}.or{justify-self:center}}
+.err{color:var(--bad);padding:0 16px 14px;margin:0}
+/* status */
+.statusbar{display:flex;flex-wrap:wrap;gap:10px 18px;align-items:center;padding:12px 16px}
+.statusbar .name{font-weight:600;word-break:break-all}
+.pill{display:inline-flex;align-items:center;gap:6px;font-size:13px;padding:2px 10px;border-radius:99px;background:var(--surface-2);white-space:nowrap}
+.dot{width:8px;height:8px;border-radius:50%;background:var(--muted)}
+.st-running .dot{background:var(--run);animation:pulse 1s infinite alternate}
+.st-done .dot{background:var(--ok)}.st-failed .dot,.st-error .dot{background:var(--bad)}
+@keyframes pulse{to{opacity:.3}}
+.tools{margin-left:auto;display:flex;gap:14px;align-items:center;flex-wrap:wrap;font-size:13px;color:var(--muted)}
+.tools label{display:flex;gap:6px;align-items:center}
+select,.tools input[type=range]{font:inherit}
+select{padding:5px 8px;border-radius:6px;border:1px solid var(--line);background:var(--surface);color:var(--ink)}
+.seg{display:inline-flex;border:1px solid var(--line);border-radius:7px;overflow:hidden}
+.seg button{all:unset;cursor:pointer;padding:4px 10px;font-size:13px;color:var(--muted)}
+.seg button[aria-pressed=true]{background:var(--surface-2);color:var(--ink);font-weight:500}
+/* results */
+.grid{display:grid;gap:14px;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));align-items:start}
+.grid.stacked{grid-template-columns:1fr}
+@media (max-width:420px){.grid{grid-template-columns:1fr}}
+.col{display:flex;flex-direction:column;min-width:0;overflow:hidden}
+.col>header{padding:12px 14px 10px;border-bottom:1px solid var(--line);border-top:4px solid var(--c,var(--line));border-radius:var(--radius) var(--radius) 0 0}
+.col h3{margin:0;font-size:17px;display:flex;align-items:baseline;gap:8px;flex-wrap:wrap}
+.col h3 small{font-weight:400;color:var(--muted);font-size:12px}
+.col h3 .pill{margin-left:auto}
+.stats{display:flex;flex-wrap:wrap;gap:4px 14px;margin-top:8px;font-size:13px;color:var(--muted)}
+.stats b{color:var(--ink);font-weight:600;font-variant-numeric:tabular-nums}
+.acts{display:flex;flex-wrap:wrap;gap:8px;margin-top:10px;align-items:center;font-size:13px}
+.acts a,.acts button{all:unset;cursor:pointer;color:var(--accent);font-weight:500}
+.acts a:hover,.acts button:hover{text-decoration:underline}
+.paper{background:var(--paper);color:#111;min-height:220px;overflow:auto;max-height:80vh;position:relative}
+.paper.src img{display:block;width:100%;height:auto}
+.paper .msg{position:absolute;inset:0;display:grid;place-items:center;color:#666;font-size:14px;text-align:center;padding:20px}
+.paper .msg.bad{color:#b3261e}
+pre.log{margin:0;max-height:260px;overflow:auto;background:var(--surface-2);font:12px/1.45 "IBM Plex Mono",monospace;padding:10px 14px;white-space:pre-wrap;word-break:break-word;border-top:1px solid var(--line)}
+/* diff */
+.diffctl{display:flex;flex-wrap:wrap;gap:10px 16px;align-items:center;padding:14px 16px;border-bottom:1px solid var(--line)}
+.diffctl .vs{color:var(--muted)}
+.diffsum{padding:10px 16px;color:var(--muted);font-size:13px}
+.diffout{overflow:auto;max-height:85vh;position:relative}
+.diffout .d2h-wrapper{font-size:12px}
+.diffout .d2h-file-header{display:none}
+:root[data-theme="dark"] .diffout, :root:not([data-theme="light"]) .diffout{}
+footer{color:var(--muted);font-size:13px;padding:30px 0 50px}
+[hidden]{display:none!important}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header class="top">
+    <h1>OMR <span>Compare</span></h1>
+    <p class="lede">Upload a score (PDF or image) or paste a link. It runs through three open-source optical music recognition engines: <b>Audiveris</b>, <b>oemer</b> and <b>homr</b>. Compare their renderings and diff their MusicXML.</p>
+  </header>
+
+  <section>
+    <div class="card">
+      <form class="in" id="form">
+        <label class="drop" id="drop">
+          <input type="file" id="file" accept=".pdf,.png,.jpg,.jpeg,.tif,.tiff,application/pdf,image/*">
+          <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true"><path d="M12 16V4m0 0-4 4m4-4 4 4M4 16v3a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1v-3"/></svg>
+          <span><span class="t" id="fileT">Choose or drop a file</span><br><span class="s" id="fileS">PDF, PNG, JPEG or TIFF · up to 40 MB</span></span>
+        </label>
+        <span class="or">or</span>
+        <div class="urlbox">
+          <input type="url" id="url" placeholder="https://… link to a PDF or image" inputmode="url">
+          <span class="s">No score handy? <button type="button" id="sample">Use a sample</button></span>
+        </div>
+        <button class="go" id="go" type="submit">Recognize</button>
+      </form>
+      <p class="err" id="formErr" hidden></p>
+    </div>
+  </section>
+
+  <section id="job" hidden>
+    <div class="card statusbar">
+      <span class="name" id="jobName"></span>
+      <span id="jobPills" style="display:flex;gap:8px;flex-wrap:wrap"></span>
+      <div class="tools">
+        <label>Zoom <input type="range" id="zoom" min="0.4" max="1.4" step="0.05" value="0.7"></label>
+        <span class="seg" id="layout"><button data-v="side" aria-pressed="true">Side by side</button><button data-v="stacked" aria-pressed="false">Stacked</button></span>
+      </div>
+    </div>
+    <p class="lede" id="jobNote" style="margin:10px 2px"></p>
+    <div class="grid" id="grid"></div>
+  </section>
+
+  <section id="diff" hidden>
+    <h2>MusicXML diff</h2>
+    <div class="card">
+      <div class="diffctl">
+        <select id="dA" aria-label="Left side"></select><span class="vs">vs</span><select id="dB" aria-label="Right side"></select>
+        <label>Compare <select id="dMode">
+          <option value="semantic" selected>Music only (layout &amp; metadata stripped)</option>
+          <option value="pretty">Full XML, reformatted</option>
+          <option value="raw">Raw file</option>
+        </select></label>
+        <span class="seg" id="dView"><button data-v="side-by-side" aria-pressed="true">Split</button><button data-v="line-by-line" aria-pressed="false">Unified</button></span>
+      </div>
+      <div class="diffsum" id="dSum">Waiting for at least two engines to finish…</div>
+      <div class="diffout" id="dOut"></div>
+    </div>
+  </section>
+
+  <footer>
+    Proof of concept. Uploads are deleted after 3 days. PDFs: the first <span id="maxp">6</span> pages are sent to oemer and homr; Audiveris gets the whole file.
+    Rendering by <a href="https://opensheetmusicdisplay.org/">OpenSheetMusicDisplay</a>; diffs by jsdiff + diff2html.
+  </footer>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/opensheetmusicdisplay@2.2.1/build/opensheetmusicdisplay.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jsdiff/9.0.0/diff.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/diff2html@3.4.52/bundles/js/diff2html-ui.min.js"></script>
+<script>
+const ENGINES = ["audiveris","oemer","homr"];
+const LABEL = {audiveris:"Audiveris", oemer:"oemer", homr:"homr"};
+const SAMPLE = "https://raw.githubusercontent.com/BreezeWhite/oemer/main/figures/tabi.jpg";
+const $ = s => document.querySelector(s);
+const el = (tag, attrs={}, ...kids) => { const e = document.createElement(tag);
+  for (const [k,v] of Object.entries(attrs)) { if (k==="class") e.className=v; else if (k.startsWith("on")) e.addEventListener(k.slice(2),v); else if (v!=null) e.setAttribute(k,v); }
+  for (const k of kids.flat()) if (k!=null) e.append(k.nodeType ? k : document.createTextNode(k)); return e; };
+const store = { get(k,d){try{return localStorage.getItem(k)??d}catch{return d}}, set(k,v){try{localStorage.setItem(k,v)}catch{}} };
+
+let job = null, pollT = null, zoom = +store.get("omr.zoom", 0.7);
+const cols = {};          // engine -> {root, select, paper, osmd, renderedKey}
+const xmlCache = new Map();
+
+/* ---------- input ---------- */
+const fileIn = $("#file"), drop = $("#drop");
+fileIn.addEventListener("change", () => showFile(fileIn.files[0]));
+function showFile(f){ $("#fileT").textContent = f ? f.name : "Choose or drop a file"; $("#fileS").textContent = f ? `${(f.size/1048576).toFixed(1)} MB` : "PDF, PNG, JPEG or TIFF · up to 40 MB"; if (f) $("#url").value=""; }
+["dragover","dragenter"].forEach(t => drop.addEventListener(t, e => { e.preventDefault(); drop.classList.add("over"); }));
+["dragleave","drop"].forEach(t => drop.addEventListener(t, e => { e.preventDefault(); drop.classList.remove("over"); }));
+drop.addEventListener("drop", e => { if (e.dataTransfer.files[0]) { fileIn.files = e.dataTransfer.files; showFile(fileIn.files[0]); } });
+$("#url").addEventListener("input", () => { if ($("#url").value) { fileIn.value=""; showFile(null); } });
+$("#sample").onclick = () => { $("#url").value = SAMPLE; fileIn.value=""; showFile(null); };
+
+$("#form").addEventListener("submit", async e => {
+  e.preventDefault();
+  const fd = new FormData(), err = $("#formErr"); err.hidden = true;
+  if (fileIn.files[0]) fd.append("file", fileIn.files[0]);
+  else if ($("#url").value.trim()) fd.append("url", $("#url").value.trim());
+  else { err.textContent = "Choose a file or paste a URL first."; err.hidden = false; return; }
+  $("#go").disabled = true; $("#go").textContent = "Uploading…";
+  try {
+    const r = await fetch("/api/jobs", {method:"POST", body:fd});
+    const j = await r.json();
+    if (!r.ok) throw new Error(j.error || r.statusText);
+    history.pushState(null, "", "/j/" + j.id);
+    openJob(j.id);
+  } catch (ex) { err.textContent = ex.message; err.hidden = false; }
+  finally { $("#go").disabled = false; $("#go").textContent = "Recognize"; }
+});
+
+/* ---------- job view ---------- */
+function openJob(id){
+  clearTimeout(pollT); job = null; xmlCache.clear();
+  for (const k in cols) delete cols[k];
+  $("#grid").replaceChildren(); $("#dOut").replaceChildren();
+  $("#job").hidden = false; $("#diff").hidden = false;
+  buildGrid();
+  poll(id);
+}
+async function poll(id){
+  try {
+    const r = await fetch("/api/jobs/" + id);
+    if (r.status === 404) { $("#jobName").textContent = "That job doesn't exist (results are kept for 3 days)."; return; }
+    job = await r.json(); render();
+    if (!["done","error"].includes(job.status)) pollT = setTimeout(() => poll(id), 2000);
+  } catch { pollT = setTimeout(() => poll(id), 4000); }
+}
+const fmtS = s => s==null ? "" : s < 60 ? `${s.toFixed(0)} s` : `${Math.floor(s/60)} m ${Math.round(s%60)} s`;
+const pill = (status, text) => el("span", {class:"pill st-"+status}, el("span",{class:"dot"}), text);
+
+function buildGrid(){
+  const g = $("#grid");
+  g.classList.toggle("stacked", store.get("omr.layout","side")==="stacked");
+  const src = el("article", {class:"card col", style:"--c:var(--muted)"},
+    el("header",{}, el("h3",{}, "Original", el("small",{id:"srcInfo"})), el("div",{class:"acts",id:"srcActs"})),
+    el("div",{class:"paper src",id:"srcPaper"}, el("div",{class:"msg"},"Preparing…")));
+  g.append(src);
+  for (const e of ENGINES) {
+    const select = el("select",{hidden:"", "aria-label":"Output file", onchange:()=>renderScore(e)});
+    const log = el("pre",{class:"log",hidden:""});
+    const root = el("article",{class:"card col", style:`--c:var(--e-${e})`},
+      el("header",{}, el("h3",{}, LABEL[e], el("small",{class:"ver"}), el("span",{class:"slot-pill"})),
+         el("div",{class:"stats"}), el("div",{class:"acts"}, select)),
+      el("div",{class:"paper"}, el("div",{class:"msg"},"Queued")), log);
+    cols[e] = {root, select, log, paper: root.querySelector(".paper"), osmd:null, renderedKey:null, files:[]};
+    g.append(root);
+  }
+}
+
+function render(){
+  $("#maxp").textContent = job.max_pages;
+  $("#jobName").textContent = job.name;
+  $("#jobPills").replaceChildren(...ENGINES.map(e => pill(job.engines[e].status, LABEL[e])));
+  const note = $("#jobNote");
+  if (job.status === "queued") note.textContent = job.queue_position ? `Waiting in line: ${job.queue_position} job(s) ahead of this one.` : "Starting…";
+  else if (job.status === "running") note.textContent = "Engines run one after another. Audiveris and homr take about a minute per page on this little server, but oemer can take half an hour or more per page. Results appear as they finish. You can bookmark this page and come back later.";
+  else if (job.status === "error") note.textContent = "Error: " + (job.error || "unknown");
+  else note.textContent = "";
+
+  // source column
+  const sp = $("#srcPaper");
+  if (job.pages.length && !sp.dataset.done) {
+    sp.dataset.done = 1;
+    sp.replaceChildren(...job.pages.map((p,i) => el("img",{src:`/api/jobs/${job.id}/input/${p}`, alt:`Page ${i+1} of the input`, loading:"lazy"})));
+    $("#srcInfo").textContent = `${job.kind.toUpperCase()} · ${job.pages.length} page${job.pages.length>1?"s":""}${job.kind==="pdf" && job.pages.length>=job.max_pages ? " shown (capped)" : ""}`;
+    $("#srcActs").replaceChildren(...[el("a",{href:`/api/jobs/${job.id}/input/${job.input}`, download:job.name}, "Download original"),
+      job.source_url ? el("a",{href:job.source_url, target:"_blank", rel:"noopener"}, "Source link") : null].filter(Boolean));
+  }
+
+  for (const e of ENGINES) {
+    const st = job.engines[e], c = cols[e], info = job.engine_info[e];
+    c.root.querySelector(".ver").replaceChildren(el("a",{href:info.url,target:"_blank",rel:"noopener"}, "v"+info.version));
+    c.root.querySelector(".slot-pill").replaceChildren(pill(st.status, st.status==="done"||st.status==="failed" ? `${st.status} · ${fmtS(st.seconds)}` : st.status==="running" && st.started ? `running · ${fmtS(Date.now()/1000 - st.started)}` : st.status));
+    const files = st.files || [];
+    if (files.join() !== c.files.join()) {
+      c.files = files;
+      c.select.replaceChildren(...files.map(f => el("option",{value:f}, f)));
+      c.select.hidden = files.length < 2;
+    }
+    // stats
+    const s = (st.stats||{})[c.select.value];
+    c.root.querySelector(".stats").replaceChildren(...(s && !s.error ? [
+      el("span",{}, el("b",{},s.parts)," parts"), el("span",{}, el("b",{},s.measures)," measures"),
+      el("span",{}, el("b",{},s.notes)," notes"), el("span",{}, el("b",{},s.rests)," rests")] : []));
+    // actions
+    const acts = c.root.querySelector(".acts");
+    acts.querySelectorAll(".gen").forEach(n => n.remove());
+    if (files.length) {
+      const f = c.select.value;
+      acts.append(...[
+        el("a",{class:"gen", href:`/api/jobs/${job.id}/out/${e}/file/${encodeURI(f)}`, download:""}, `Download ${f.split(".").pop()}`),
+        f.endsWith(".mxl") ? el("a",{class:"gen", href:`/api/jobs/${job.id}/out/${e}/xml/${encodeURI(f)}?mode=pretty`, download:`${e}-${f.replace(/\.mxl$/,"")}.musicxml`}, "Download .musicxml") : null].filter(Boolean));
+    }
+    if (["done","failed","running"].includes(st.status))
+      acts.append(el("button",{class:"gen", onclick:()=>toggleLog(e)}, c.log.hidden ? "Show log" : "Hide log"));
+    if (!c.log.hidden) loadLog(e);
+    // paper
+    if (st.status === "done") renderScore(e);
+    else if (!(st.status==="running" && c.paper.querySelector(".msg")?.textContent==="Recognizing…")) setMsg(c.paper, st.status==="running" ? "Recognizing…" : st.status==="failed" ? (st.error||"Failed") : "Queued", st.status==="failed");
+  }
+  updateDiffOptions();
+}
+function setMsg(paper, text, bad){ paper.replaceChildren(el("div",{class:"msg"+(bad?" bad":"")}, text)); }
+async function toggleLog(e){ const c = cols[e]; c.log.hidden = !c.log.hidden; if (!c.log.hidden) await loadLog(e); render(); }
+async function loadLog(e){ const t = await (await fetch(`/api/jobs/${job.id}/out/${e}/log`)).text(); const c = cols[e]; const atEnd = c.log.scrollTop + c.log.clientHeight >= c.log.scrollHeight - 4; c.log.textContent = t || "(empty)"; if (atEnd) c.log.scrollTop = c.log.scrollHeight; }
+
+async function getXml(e, f, mode){
+  const key = `${e}|${f}|${mode}`;
+  if (!xmlCache.has(key)) xmlCache.set(key, fetch(`/api/jobs/${job.id}/out/${e}/xml/${encodeURI(f)}?mode=${mode}`).then(async r => { const t = await r.text(); if (!r.ok) throw new Error(JSON.parse(t).error || r.statusText); return t; }));
+  return xmlCache.get(key);
+}
+
+async function renderScore(e, force){
+  const c = cols[e], f = c.select.value; if (!f) return;
+  const key = `${f}|${zoom}`;
+  if (c.renderedKey === key && !force) return;
+  c.renderedKey = key;
+  try {
+    const xml = await getXml(e, f, "pretty");
+    if (c.renderedKey !== key) return;
+    if (!c.osmd || c.osmdFile !== f) {
+      c.paper.replaceChildren();
+      const host = el("div"); c.paper.append(host);
+      c.osmd = new opensheetmusicdisplay.OpenSheetMusicDisplay(host, {autoResize:true, backend:"svg", drawingParameters:"compacttight", drawPartNames:true});
+      await c.osmd.load(xml); c.osmdFile = f;
+    }
+    c.osmd.zoom = zoom; c.osmd.render();
+  } catch (ex) { c.osmd = null; c.osmdFile = null; setMsg(c.paper, "Couldn't render this MusicXML: " + ex.message, true); }
+}
+
+$("#zoom").value = zoom;
+$("#zoom").addEventListener("input", () => { zoom = +$("#zoom").value; store.set("omr.zoom", zoom); clearTimeout(window._zt); window._zt = setTimeout(() => ENGINES.forEach(e => job && job.engines[e].status==="done" && renderScore(e)), 150); });
+segmented($("#layout"), store.get("omr.layout","side"), v => { store.set("omr.layout", v); $("#grid").classList.toggle("stacked", v==="stacked"); setTimeout(()=>ENGINES.forEach(e => cols[e]?.osmd && renderScore(e, true)), 50); });
+function segmented(root, initial, cb){
+  const btns = [...root.querySelectorAll("button")];
+  const set = v => btns.forEach(b => b.setAttribute("aria-pressed", b.dataset.v===v));
+  set(initial); btns.forEach(b => b.onclick = () => { set(b.dataset.v); cb(b.dataset.v); });
+  return () => btns.find(b => b.getAttribute("aria-pressed")==="true").dataset.v;
+}
+
+/* ---------- diff ---------- */
+let diffView = store.get("omr.dview","side-by-side");
+const getView = segmented($("#dView"), diffView, v => { diffView = v; store.set("omr.dview", v); runDiff(); });
+function updateDiffOptions(){
+  const opts = [];
+  for (const e of ENGINES) for (const f of (job.engines[e].files||[])) opts.push({v:`${e}|${f}`, t: (job.engines[e].files.length>1 ? `${LABEL[e]}: ${f}` : LABEL[e])});
+  const sig = opts.map(o=>o.v).join();
+  if ($("#dA").dataset.sig === sig) return;
+  $("#dA").dataset.sig = sig;
+  for (const [sel, idx] of [[$("#dA"),0],[$("#dB"),1]]) {
+    const prev = sel.value;
+    sel.replaceChildren(...opts.map(o => el("option",{value:o.v}, o.t)));
+    if (opts.some(o=>o.v===prev)) sel.value = prev; else if (opts[idx]) sel.value = opts[idx].v;
+  }
+  if (opts.length >= 2) runDiff();
+  else $("#dSum").textContent = opts.length ? "Waiting for a second engine to finish…" : "Waiting for at least two engines to finish…";
+}
+["#dA","#dB","#dMode"].forEach(s => $(s).addEventListener("change", runDiff));
+let diffSeq = 0;
+async function runDiff(){
+  const a = $("#dA").value, b = $("#dB").value, mode = $("#dMode").value, seq = ++diffSeq;
+  if (!a || !b) return;
+  if (a === b) { $("#dSum").textContent = "Pick two different outputs."; $("#dOut").replaceChildren(); return; }
+  $("#dSum").textContent = "Diffing…";
+  try {
+    const [ea,fa] = a.split("|"), [eb,fb] = b.split("|");
+    const [ta, tb] = await Promise.all([getXml(ea,fa,mode), getXml(eb,fb,mode)]);
+    if (seq !== diffSeq) return;
+    const la = ta.split("\n").length, lb = tb.split("\n").length;
+    const patch = Diff.createTwoFilesPatch(`${LABEL[ea]}/${fa}`, `${LABEL[eb]}/${fb}`, ta, tb, "", "", {context:3});
+    let add=0, del=0; for (const l of patch.split("\n")) { if (l.startsWith("+") && !l.startsWith("+++")) add++; else if (l.startsWith("-") && !l.startsWith("---")) del++; }
+    $("#dSum").textContent = `${LABEL[ea]}: ${la.toLocaleString()} lines · ${LABEL[eb]}: ${lb.toLocaleString()} lines · ${del.toLocaleString()} removed, ${add.toLocaleString()} added` + (mode==="semantic" ? " (positions, fonts, page layout and metadata are ignored)" : "");
+    const dark = matchMedia("(prefers-color-scheme: dark)").matches;
+    const ui = new Diff2HtmlUI($("#dOut"), patch, {outputFormat:diffView, drawFileList:false, matching:"lines", diffMaxChanges:6000, highlight:false, colorScheme: dark ? "dark" : "light", fileContentToggle:false});
+    ui.draw();
+  } catch (ex) { if (seq === diffSeq) { $("#dSum").textContent = "Diff failed: " + ex.message; $("#dOut").replaceChildren(); } }
+}
+
+/* ---------- routing ---------- */
+function route(){ const m = location.pathname.match(/^\/j\/([0-9a-f]{12})$/); if (m) openJob(m[1]); else { $("#job").hidden = true; $("#diff").hidden = true; } }
+addEventListener("popstate", route); route();
+</script>
+</body>
+</html>
