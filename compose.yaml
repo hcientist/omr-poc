@@ -9,6 +9,7 @@ services:
       MAX_PAGES: "6"
       ENGINE_TIMEOUT: "900"
       KEEP_HOURS: "72"
+      ENGINES: "audiveris,homr"   # oemer disabled: ~30+ min/page on casa
       OMP_NUM_THREADS: "3"
     volumes:
       - ./data:/data

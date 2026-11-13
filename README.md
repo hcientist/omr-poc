@@ -6,7 +6,7 @@ open-source OMR engines and shows the results side by side:
 | engine    | version | notes |
 |-----------|---------|-------|
 | Audiveris | 5.11.0  | .deb from GitHub releases; needs libgtk-3 even in `-batch` |
-| oemer     | 0.1.8   | onnxruntime pinned to 1.17.3 (newer rejects its ConvTranspose pads); batch size patched 16→4 (`OEMER_BATCH`) to fit in memory; very slow on CPU |
+| oemer     | 0.1.8   | **disabled by default** (`ENGINES` env; add `oemer` to enable). onnxruntime pinned to 1.17.3 (newer rejects its ConvTranspose pads); batch size patched 16→4 (`OEMER_BATCH`) to fit in memory; very slow on CPU |
 | homr      | 0.7.1   | `homr[cpu]` |
 
 The browser renders each MusicXML with OpenSheetMusicDisplay and diffs any two outputs

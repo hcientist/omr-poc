@@ -32,7 +32,8 @@ OEMER_TIMEOUT = int(os.environ.get("OEMER_TIMEOUT", "3000"))  # per page; oemer 
 KEEP_HOURS = float(os.environ.get("KEEP_HOURS", "72"))
 STATIC = Path(__file__).parent / "static"
 
-ENGINES = ["audiveris", "oemer", "homr"]
+ALL_ENGINES = ["audiveris", "oemer", "homr"]
+ENGINES = [e for e in os.environ.get("ENGINES", "audiveris,homr").split(",") if e in ALL_ENGINES]
 ENGINE_INFO = {
     "audiveris": {"label": "Audiveris", "version": "5.11.0", "url": "https://github.com/Audiveris/audiveris"},
     "oemer": {"label": "oemer", "version": "0.1.8", "url": "https://github.com/BreezeWhite/oemer"},
@@ -201,7 +202,9 @@ def process(jid: str) -> None:
     except Exception as e:  # noqa: BLE001
         update(jid, lambda j: j.update(status="error", error=f"could not read input: {e}"))
         return
-    for eng in ENGINES:
+    for eng in [e for e in ENGINES if e in job["engines"]]:
+        if job["engines"][eng]["status"] in ("done", "failed"):
+            continue
         out = d / "out" / eng
         shutil.rmtree(out, ignore_errors=True)
         out.mkdir(parents=True)
@@ -384,7 +387,7 @@ def get_input(jid: str, path: str):
 
 def engine_file(jid: str, eng: str, f: str) -> Path:
     d = job_dir(jid)
-    if eng not in ENGINES:
+    if eng not in ALL_ENGINES:
         raise HTTPException(404)
     base = (d / "out" / eng).resolve()
     p = (base / f).resolve()
@@ -396,7 +399,7 @@ def engine_file(jid: str, eng: str, f: str) -> Path:
 @app.get("/api/jobs/{jid}/out/{eng}/log")
 def get_log(jid: str, eng: str):
     d = job_dir(jid)
-    if eng not in ENGINES:
+    if eng not in ALL_ENGINES:
         raise HTTPException(404)
     p = d / "out" / f"{eng}.log"
     text = p.read_text(errors="replace") if p.exists() else ""
@@ -450,8 +453,11 @@ def _startup() -> None:
         except Exception:  # noqa: BLE001
             continue
         if j.get("status") in ("queued", "running"):
-            for e in j["engines"].values():
-                if e["status"] == "running":
+            for name in list(j["engines"]):
+                e = j["engines"][name]
+                if e["status"] in ("queued", "running") and name not in ENGINES:
+                    del j["engines"][name]
+                elif e["status"] == "running":
                     e["status"] = "queued"
             save(d.name, j)
             pending.append(d.name)
