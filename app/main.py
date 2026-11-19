@@ -19,6 +19,7 @@ from pathlib import Path
 
 from fastapi import FastAPI, File, Form, HTTPException, UploadFile
 from fastapi.responses import FileResponse, JSONResponse, PlainTextResponse
+from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from lxml import etree
 
@@ -41,6 +42,10 @@ ENGINE_INFO = {
 }
 
 app = FastAPI(title="OMR Compare")
+# Outputs are public, read-only, credential-free: let other sites (e.g. a MusicXML viewer) fetch them.
+CORS_ORIGINS = [o.strip() for o in os.environ.get("CORS_ORIGINS", "*").split(",") if o.strip()]
+if CORS_ORIGINS:
+    app.add_middleware(CORSMiddleware, allow_origins=CORS_ORIGINS, allow_methods=["GET", "POST"], allow_headers=["*"])
 work_q: "queue.Queue[str]" = queue.Queue()
 lock = threading.Lock()
 pending: list[str] = []

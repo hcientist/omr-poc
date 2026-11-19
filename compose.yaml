@@ -9,6 +9,8 @@ services:
       MAX_PAGES: "6"
       ENGINE_TIMEOUT: "900"
       KEEP_HOURS: "72"
+      # Origins allowed to fetch outputs cross-origin (comma list; "*" = any; empty = CORS off).
+      CORS_ORIGINS: "${OMR_CORS_ORIGINS:-*}"
       # Which engines to run, in order. oemer is installed but off by default (very slow on CPU).
       ENGINES: "${OMR_ENGINES:-audiveris,homr}"
       OMP_NUM_THREADS: "${OMR_THREADS:-4}"

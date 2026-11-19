@@ -34,6 +34,7 @@ Knobs (shell env or a `.env` file next to `compose.yaml`):
 | `OMR_MEM` | `6g` | container memory cap. The engines run one at a time. |
 | `OMR_THREADS` | `4` | `OMP_NUM_THREADS` for the ONNX engines |
 | `OMR_BIND` / `OMR_PORT` | `127.0.0.1` / `8487` | where the web UI listens |
+| `OMR_CORS_ORIGINS` | `*` | origins allowed to fetch outputs cross-origin (comma list; empty disables CORS) |
 
 Other settings live in `compose.yaml`: `MAX_UPLOAD_MB` (40) and `MAX_PAGES` (6; PDF pages given to
 homr/oemer, while Audiveris gets the whole PDF). There's also `ENGINE_TIMEOUT` (900 s), `OEMER_TIMEOUT`
